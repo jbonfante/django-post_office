@@ -1,6 +1,10 @@
 import sys
+import json
+from sendgrid.message import SendGridEmailMessage, SendGridEmailMultiAlternatives
+from sendgrid.models import Argument, Category
 import warnings
 from uuid import uuid4
+from django.utils.translation import ugettext as _
 
 from collections import namedtuple
 
@@ -61,6 +65,7 @@ class Email(models.Model):
     subject = models.CharField(max_length=255, blank=True)
     message = models.TextField(blank=True)
     html_message = models.TextField(blank=True)
+    category = models.CharField(max_length=150, blank=True, null=True, help_text="Primary SendGrid category")
     """
     Emails having 'queued' status will get processed by ``send_all`` command.
     This status field will then be set to ``failed`` or ``sent`` depending on
@@ -81,7 +86,7 @@ class Email(models.Model):
         ordering = ('-created',)
 
     def __unicode__(self):
-        return self.to
+        return smart_text(self.to,  encoding='utf-8', strings_only=False, errors='strict')
 
     def email_message(self, connection=None):
         """
@@ -89,6 +94,9 @@ class Email(models.Model):
         from a ``Message`` instance, depending on whether html_message is empty.
         """
         subject = smart_text(self.subject)
+        # msg = EmailMultiAlternatives(subject, self.message, self.from_email,
+        #                              [self.to], connection=connection,
+        #                              headers=self.headers)
         msg = EmailMultiAlternatives(subject, self.message, self.from_email,
                                      [self.to], connection=connection,
                                      headers=self.headers)
@@ -98,6 +106,17 @@ class Email(models.Model):
         for attachment in self.attachments.all():
             msg.attach(attachment.name, attachment.file.read())
 
+        # msg = EmailMultiAlternatives(subject, self.message, self.from_email,
+        #                              [self.to], connection=connection,
+        #                              headers=self.headers)
+        msg = SendGridEmailMultiAlternatives(subject, self.message, self.from_email,
+                                     [self.to], connection=connection,
+                                     headers=self.headers)
+        if self.html_message:
+            msg.attach_alternative(self.html_message, "text/html")
+        if len(self.category) > 0:
+            msg.sendgrid_headers.setCategory(self.category)
+            msg.sendgrid_headers.setUniqueArgs()
         return msg
 
     def dispatch(self, connection=None):
@@ -111,7 +130,7 @@ class Email(models.Model):
                 connection.open()
                 connection_opened = True
 
-            self.email_message(connection=connection).send()
+            self.email_sendgrid_message(connection=connection).send()
             status = STATUS.sent
             message = 'Sent'
 
@@ -148,30 +167,30 @@ class Log(models.Model):
         ordering = ('-date',)
 
     def __unicode__(self):
-        return str(self.date)
+        return smart_text(self.date,  encoding='utf-8', strings_only=False, errors='strict')
 
 
 class EmailTemplate(models.Model):
     """
     Model to hold template information from db
     """
-    name = models.CharField(max_length=255, help_text=("Example: 'emails/customers/id/welcome.html'"))
+    name = models.CharField(max_length=255, help_text=_("Example: 'emails/customers/id/welcome.html'"),
+                            validators=[validate_template_syntax])
     description = models.TextField(blank=True,
                                    help_text='Description of this email template.')
-    subject = models.CharField(max_length=255, blank=True,
-                               validators=[validate_template_syntax])
-    content = models.TextField(blank=True,
-                               validators=[validate_template_syntax])
-    html_content = models.TextField(blank=True,
-                                    validators=[validate_template_syntax])
+    subject = models.CharField(max_length=255, blank=True)
+    content = models.TextField(blank=True, )
+    html_content = models.TextField(blank=True)
     created = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
+    variables = models.ManyToManyField(TemplateVariable, 'Variables to look for in template', null=True, blank=True)
+    categories = models.ManyToManyField(EmailCategory, help_text=("Categories to include with template."), null=True, blank=True)
 
     class Meta:
         ordering = ('name',)
 
     def __unicode__(self):
-        return str(self.name)
+        return smart_text(self.name,  encoding='utf-8', strings_only=False, errors='strict')
 
     def save(self, *args, **kwargs):
         template = super(EmailTemplate, self).save(*args, **kwargs)
@@ -195,3 +214,27 @@ class Attachment(models.Model):
     file = models.FileField(upload_to=get_upload_path)
     name = models.CharField(max_length=255, help_text='The original filename')
     emails = models.ManyToManyField(Email, related_name='attachments')
+
+
+class TemplateVariable(models.Model):
+    name = models.CharField(max_length=255, help_text=_("Name of variable to map to"), unique=True)
+    static = models.BooleanField(default=False)
+    value = models.CharField(max_length=512, null=True, blank=True)
+    test_value = models.CharField(max_length=512, default='Testing', null=True)
+
+    # template = models.ManyToManyField(EmailTemplate, null=True, blank=True)
+
+    def __unicode__(self):
+        return smart_text(self.name,  encoding='utf-8', strings_only=False, errors='strict')
+
+
+class EmailCategory(models.Model):
+    name = models.CharField(max_length=255, help_text=_("Name of category"))
+    # template = models.ManyToManyField(EmailTemplate, null=True, blank=True)
+
+    def __unicode__(self):
+        return smart_text(self.name,  encoding='utf-8', strings_only=False, errors='strict')
+
+    class Meta:
+        verbose_name_plural = _("Email Categories")
+        verbose_name = _("Email Category")

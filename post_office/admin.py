@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.text import Truncator
 
-from .models import Email, Log, EmailTemplate
+from .models import Email, Log, EmailTemplate, TemplateVariable, EmailCategory
 
 
 def get_message_preview(instance):
@@ -47,6 +47,22 @@ class EmailTemplateAdmin(admin.ModelAdmin):
     description_shortened.admin_order_field = 'description'
 
 
+class TemplateVariablesInline(admin.TabularInline):
+    model = TemplateVariable
+
+
+class TemplateCategoryInline(admin.StackedInline):
+    model = EmailCategory
+
+
+class TemplateExtraAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+
+
+
+
 admin.site.register(Email, EmailAdmin)
 admin.site.register(Log, LogAdmin)
 admin.site.register(EmailTemplate, EmailTemplateAdmin)
+admin.site.register(EmailCategory, TemplateExtraAdmin)
+admin.site.register(TemplateVariable, TemplateExtraAdmin)

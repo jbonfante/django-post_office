@@ -10,6 +10,7 @@ from django.template import Context, Template
 
 from .compat import string_types
 from .models import Email, EmailTemplate, PRIORITY, STATUS
+from sendgrid.models import EmailMessage
 from .settings import get_batch_size, get_email_backend
 from .utils import get_email_template, split_emails, create_attachments
 from .logutils import setup_loghandlers
@@ -49,7 +50,15 @@ def create(sender, recipient, subject='', message='', html_message='',
         message = Template(message).render(context)
         html_message = Template(html_message).render(context)
 
-    email = Email(
+    # email = Email(
+    #     from_email=sender, to=recipient,
+    #     subject=subject,
+    #     message=message,
+    #     html_message=html_message,
+    #     scheduled_time=scheduled_time,
+    #     headers=headers, priority=priority, status=status
+    # )
+    email = EmailMessage(
         from_email=sender, to=recipient,
         subject=subject,
         message=message,
