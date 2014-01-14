@@ -19,7 +19,7 @@ except ImportError:
 from django.template import Context, Template
 
 from jsonfield import JSONField
-from post_office import cache
+import cache
 from .settings import get_email_backend
 from .validators import validate_email_with_name, validate_template_syntax
 
@@ -170,6 +170,30 @@ class Log(models.Model):
         return smart_text(self.date,  encoding='utf-8', strings_only=False, errors='strict')
 
 
+class TemplateVariable(models.Model):
+    name = models.CharField(max_length=255, help_text=_("Name of variable to map to"), unique=True)
+    static = models.BooleanField(default=False)
+    value = models.CharField(max_length=512, null=True, blank=True)
+    test_value = models.CharField(max_length=512, default='Testing', null=True)
+
+    # template = models.ManyToManyField(EmailTemplate, null=True, blank=True)
+
+    def __unicode__(self):
+        return smart_text(self.name,  encoding='utf-8', strings_only=False, errors='strict')
+
+
+class EmailCategory(models.Model):
+    name = models.CharField(max_length=255, help_text=_("Name of category"))
+    # template = models.ManyToManyField(EmailTemplate, null=True, blank=True)
+
+    def __unicode__(self):
+        return smart_text(self.name,  encoding='utf-8', strings_only=False, errors='strict')
+
+    class Meta:
+        verbose_name_plural = _("Email Categories")
+        verbose_name = _("Email Category")
+
+
 class EmailTemplate(models.Model):
     """
     Model to hold template information from db
@@ -216,25 +240,3 @@ class Attachment(models.Model):
     emails = models.ManyToManyField(Email, related_name='attachments')
 
 
-class TemplateVariable(models.Model):
-    name = models.CharField(max_length=255, help_text=_("Name of variable to map to"), unique=True)
-    static = models.BooleanField(default=False)
-    value = models.CharField(max_length=512, null=True, blank=True)
-    test_value = models.CharField(max_length=512, default='Testing', null=True)
-
-    # template = models.ManyToManyField(EmailTemplate, null=True, blank=True)
-
-    def __unicode__(self):
-        return smart_text(self.name,  encoding='utf-8', strings_only=False, errors='strict')
-
-
-class EmailCategory(models.Model):
-    name = models.CharField(max_length=255, help_text=_("Name of category"))
-    # template = models.ManyToManyField(EmailTemplate, null=True, blank=True)
-
-    def __unicode__(self):
-        return smart_text(self.name,  encoding='utf-8', strings_only=False, errors='strict')
-
-    class Meta:
-        verbose_name_plural = _("Email Categories")
-        verbose_name = _("Email Category")
