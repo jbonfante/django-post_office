@@ -1,1 +1,13 @@
 *.pyc
+
+django_post_office.egg-info/PKG-INFO
+
+django_post_office.egg-info/SOURCES.txt
+
+django_post_office.egg-info/dependency_links.txt
+
+django_post_office.egg-info/not-zip-safe
+
+django_post_office.egg-info/requires.txt
+
+django_post_office.egg-info/top_level.txt
