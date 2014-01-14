@@ -10,7 +10,7 @@ try:
 except ImportError:
     from django.utils.encoding import force_unicode as force_text
 
-from post_office import cache
+import cache
 from .compat import string_types
 from .models import Email, PRIORITY, STATUS, EmailTemplate, Attachment
 from .settings import get_email_backend
